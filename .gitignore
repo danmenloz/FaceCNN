@@ -1,0 +1,11 @@
+# Ignore files and folders
+actors/
+.vscode/
+**/.DS_Store
+Dataset/
+data/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
