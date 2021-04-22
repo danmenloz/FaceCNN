@@ -160,36 +160,6 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
 
 
 
-def read_dataset_file(filename):
-    actors = list()
-    with open(filename, newline='') as dataset:
-        dataset_reader = csv.DictReader(dataset, delimiter='\t')
-        for actor in dataset_reader:
-            actors.append(actor)
-    return actors
-
-
-
-def load_datasets():
-    files = ['data/train/train.txt', 'data/valid/valid.txt', 'data/test/test.txt']
-    return map(read_dataset_file, files)
-
-
-
-def read_dataset(dataset):
-    # dataset is a list of dictionaries: dataset = [{face: image: 1: 0:},...]
-    # return list of positive and negative images
-
-    pos_imgs = list()
-    neg_imgs = list()
-
-    for actor in dataset:
-        pos_imgs.append( np.array(Image.open(actor['1']), dtype=np.float64) )
-        neg_imgs.append( np.array(Image.open(actor['0']), dtype=np.float64) )
-    
-    return pos_imgs, neg_imgs
-
-
 def plot_confusion_matrix(score, num_pos, num_neg, name):
     labels = [1.0]*num_pos + [0.0]*num_neg
     confM = metrics.confusion_matrix(labels, score)
@@ -201,6 +171,7 @@ def plot_confusion_matrix(score, num_pos, num_neg, name):
     plt.xlabel('Predicted')
     plt.savefig(os.path.join(path_save_dir, name+'.jpg'))
     plt.close()
+
 
 
 def build_report(score, num_pos, num_neg):
