@@ -216,8 +216,7 @@ def plot_accuracy(train_acc, val_acc, filename='./images/accuracy.png'):
 
 
 
-def plot_confusion_matrix(score, num_pos, num_neg, name):
-    labels = [1.0]*num_pos + [0.0]*num_neg
+def plot_confusion_matrix(score, labels, filename='./images/conf_mtx.png'):
     confM = metrics.confusion_matrix(labels, score)
     fig, ax = plt.subplots(figsize=(7,4)) 
     axis_labels = ["non-face","face"]
@@ -225,12 +224,38 @@ def plot_confusion_matrix(score, num_pos, num_neg, name):
     plt.title('Confusion Matrix')
     plt.ylabel('True')
     plt.xlabel('Predicted')
-    plt.savefig(os.path.join(path_save_dir, name+'.jpg'))
+    plt.savefig(filename)
     plt.close()
 
 
 
-def build_report(score, num_pos, num_neg):
-    labels = [1.0]*num_pos + [0.0]*num_neg
+def build_report(score, labels):
     print('\nClassification Report')
     print(metrics.classification_report(labels, score))
+
+
+
+def plot_mispredictions(score,labels,dataset,num_imgs=np.inf,filename='./images/mispredicted.png'):
+    correct = np.array([s==l for (s,l) in zip(score,labels)])
+    mispredict = np.argwhere(correct==False).ravel()
+    np.random.shuffle(mispredict)
+    
+    num_imgs = min(num_imgs,len(mispredict)) # cannot plot more images than the mispredicted num
+    if num_imgs < 1:
+        print('Not enough mispredictions to plot!')
+        return
+
+    # Plot images on one figure
+    fig,axes = plt.subplots(1, num_imgs,figsize=(3*num_imgs,3*num_imgs))
+
+    for idx, ax in enumerate(axes.ravel()):
+        img_idx = mispredict[idx]
+        path,label = dataset.imgs[img_idx]
+        img = Image.open(path)
+        title = 'Non-face' if score[img_idx]==0 else 'Face'
+        ax.imshow(img)
+        ax.title.set_text(title)
+        ax.set_axis_off()
+    
+    plt.savefig(filename)
+    plt.close()

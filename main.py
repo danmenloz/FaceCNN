@@ -212,10 +212,53 @@ if __name__ == "__main__":
     
     print('Training complete!')
 
-    utils.save_history(hist, 'CNN_history.csv') 
-    read_hist = utils.read_history('CNN_history.csv') 
+    utils.save_history(hist, './images/CNN_history.csv') 
+    read_hist = utils.read_history('./images/CNN_history.csv') 
 
     # Generate and save plots
     utils.plot_loss(read_hist['train_loss'], read_hist['train_loss_epoch'], scatter=True)
     utils.plot_loss(read_hist['train_loss_epoch'], read_hist['val_loss_epoch'])
     utils.plot_accuracy(read_hist['train_acc'], read_hist['val_acc'])
+
+
+    ## Measure performance using the Test dataset
+    # Load data from folder
+    test_dataset = datasets.ImageFolder(
+        testdir,
+        transforms.Compose([
+            transforms.ToTensor() # rescale to [0.0, 1.0]
+            # TODO: add normalization
+            # TODO: add data agumentation schemes
+        ])
+    )
+    # Samples count
+    print('Test samples: \t%d' %(test_dataset.__len__()))
+    # Create data loader
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False,
+        num_workers=workers)
+    # Test data evaluation
+    true_labels = test_loader.dataset.targets
+    predict_labels = []
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for (images,labels) in test_loader:
+                # Copy to GPU if available
+                images, labels = images.to(device), labels.to(device)
+                output = net(images)
+                # Accuracy
+                _, predicted = torch.max(output.data, 1)
+                total += len(labels)
+                predict_labels += predicted.tolist()
+                correct += (predicted == labels).sum().item()
+    print('Accuracy in test set: %3.3f%%' % (100 * correct / total))
+
+    # Generate report
+    utils.build_report(predict_labels,true_labels)
+
+    # Plot and save confusion matrix
+    utils.plot_confusion_matrix(predict_labels,true_labels)
+
+    # Plot and save some mispredicted images
+    utils.plot_mispredictions(predict_labels,true_labels,test_dataset)
