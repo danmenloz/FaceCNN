@@ -160,6 +160,20 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
 
 
 
+def save_history(input_dict, filename = 'history.csv'):
+    with open(filename, 'w', newline='') as file:
+        keys = ['epoch', 'train_loss_epoch','train_acc','val_loss_epoch','val_acc','lr_list']
+        writer = csv.DictWriter(file, fieldnames=keys, delimiter='\t')
+        writer.writeheader()
+        history = zip( input_dict[keys[1]], input_dict[keys[2]],input_dict[keys[3]],input_dict[keys[4]],input_dict[keys[5]] ) #all except epoch key
+        for epoch, values in enumerate(history):
+            new_values = list(values)
+            new_values.insert(0,epoch) # add epoch value
+            entry = dict(zip(keys, new_values))
+            writer.writerow(entry)
+
+
+
 def plot_confusion_matrix(score, num_pos, num_neg, name):
     labels = [1.0]*num_pos + [0.0]*num_neg
     confM = metrics.confusion_matrix(labels, score)
