@@ -125,19 +125,20 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.0025, momentum=0.9)
 
-    # Lists for train results
-    train_loss = []      # Stores train loss at each iteration
-    train_loss_epoch = [] # Stores train Loss per Epoch
-    train_acc = []       # Stores train accuracy per mini batch
-    train_predict = []   # Stores prediction labels
-
-    # List for validation results
-    val_loss_epoch = []   # Stores train Loss per Epoch
-    val_acc = []         # Stores train accuracy per mini batch
-    val_predict = []     # Stores prediction labels
-
-    # List learning rate
-    lr_list = []
+    # Save training and validation history in a dictionary
+    hist = {
+        # Lists for train results
+        'train_loss': [],         # Stores train loss at each iteration
+        'train_loss_epoch': [],   # Stores train Loss per Epoch
+        'train_acc': [],          # Stores train accuracy per mini batch
+        'train_predict': [],      # Stores prediction labels
+        # List for validation results
+        'val_loss_epoch': [],     # Stores train Loss per Epoch
+        'val_acc': [],            # Stores train accuracy per mini batch
+        'val_predict': [],        # Stores prediction labels
+        # List learning rate
+        'lr_list': []
+    }
 
     # Training and validation for a fixed number of epochs
     for epoch in range(max_epochs):
@@ -160,18 +161,18 @@ if __name__ == "__main__":
             optimizer.step()
             
             # Storing loss
-            train_loss.append(loss.item())
+            hist['train_loss'].append(loss.item())
             loss_batch += loss.item()
         
             # Storing accuracy
             _, predicted = torch.max(output.data, 1)
             total += len(labels)
             correct += (predicted == labels).sum().item()
-            train_predict += (predicted).tolist()
+            hist['train_predict'] += (predicted).tolist()
         
         # Train loss and accuracy per epoch 
-        train_loss_epoch.append(loss_batch/(i+1))
-        train_acc.append(correct/total)
+        hist['train_loss_epoch'].append(loss_batch/(i+1))
+        hist['train_acc'].append(correct/total)
 
         # Reset variables for validation
         loss_batch = 0.0
@@ -194,18 +195,27 @@ if __name__ == "__main__":
                 _, predicted = torch.max(output.data, 1)
                 total += len(labels)
                 correct += (predicted == labels).sum().item()
-                val_predict += (predicted).tolist()
+                hist['val_predict'] += (predicted).tolist()
         
         # Validation loss and accuracy per epoch
-        val_loss_epoch.append(loss_batch/(j+1))
-        val_acc.append(correct/total)
+        hist['val_loss_epoch'].append(loss_batch/(j+1))
+        hist['val_acc'].append(correct/total)
         loss_batch = 0.0
         total = 0
         correct = 0
-        lr_list.append(optimizer.param_groups[0]['lr'])
+        hist['lr_list'].append(optimizer.param_groups[0]['lr'])
         
         # Print results
-        print("Epoch %2d -> train_loss: %.3f, train_accuracy: %.3f | valid_loss: %.3f, valid_accuracy: %.3f | lr: %.4f" 
-            %(epoch+1,train_loss_epoch[epoch],train_acc[epoch],val_loss_epoch[epoch],val_acc[epoch],lr_list[epoch]))
-        
+        print("Epoch %2d -> train_loss: %.5f, train_acc: %.5f | val_loss: %.5f, val_acc: %.5f | lr: %.5f" 
+            %(epoch+1,hist['train_loss_epoch'][epoch],hist['train_acc'][epoch], \
+                hist['val_loss_epoch'][epoch],hist['val_acc'][epoch],hist['lr_list'][epoch]))
+    
     print('Training complete!')
+
+    utils.save_history(hist, 'CNN_history.csv') 
+    read_hist = utils.read_history('CNN_history.csv') 
+
+    # Generate and save plots
+    utils.plot_loss(read_hist['train_loss'], read_hist['train_loss_epoch'], scatter=True)
+    utils.plot_loss(read_hist['train_loss_epoch'], read_hist['val_loss_epoch'])
+    utils.plot_accuracy(read_hist['train_acc'], read_hist['val_acc'])

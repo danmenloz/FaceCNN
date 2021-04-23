@@ -10,6 +10,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn import metrics
 import seaborn as sns
+import pandas as pd
+
 
 path_actors_faces = './actors/faces/'
 path_actors_images = './actors/images/'
@@ -161,16 +163,56 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
 
 
 def save_history(input_dict, filename = 'history.csv'):
-    with open(filename, 'w', newline='') as file:
-        keys = ['epoch', 'train_loss_epoch','train_acc','val_loss_epoch','val_acc','lr_list']
-        writer = csv.DictWriter(file, fieldnames=keys, delimiter='\t')
-        writer.writeheader()
-        history = zip( input_dict[keys[1]], input_dict[keys[2]],input_dict[keys[3]],input_dict[keys[4]],input_dict[keys[5]] ) #all except epoch key
-        for epoch, values in enumerate(history):
-            new_values = list(values)
-            new_values.insert(0,epoch) # add epoch value
-            entry = dict(zip(keys, new_values))
-            writer.writerow(entry)
+    # Every key to data frame column
+    df = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in input_dict.items() ]))
+    df.index += 1 # start index at one
+    df.to_csv(filename) # write data frame to csv file
+
+
+
+def read_history(filename='history.csv'):
+    df = pd.read_csv(filename, index_col=0) # read dataframe from csv file
+    output_dict = df.to_dict('list') # all columns in df to list within a dictionary
+    for key in list(output_dict.keys()): # for all keys 
+        output_dict[key][:] = [x for x in output_dict[key] if x == x] # remove nan values in lists
+    return output_dict
+
+
+
+def plot_loss(loss1, loss2, filename='./images/loss.png',scatter=False):
+    if scatter:
+        x_loss = np.arange(0,len(loss1))
+        x_loss_epoch = np.linspace(0,len(loss1),len(loss2)).astype(int)
+        plt.plot(x_loss, loss1, color='red', marker='o', linestyle='none', markersize=2)
+        plt.plot(x_loss_epoch, loss2, linewidth=5)
+        plt.title("Loss Train")
+        plt.ylabel("Loss")
+        plt.xlabel("Iteration")
+        filename='./images/loss_train.png'
+    else:
+        plt.plot(loss1, linewidth=5)
+        plt.plot(loss2, linewidth=5)
+        plt.title("Loss")
+        plt.ylabel("Loss")
+        plt.xlabel("Epoch")
+        plt.legend(["Train","Validation"])
+    plt.ylim([0,1.0])
+    plt.savefig(filename)
+    plt.close()
+
+
+
+def plot_accuracy(train_acc, val_acc, filename='./images/accuracy.png'):
+    plt.plot(train_acc, linewidth=5)
+    plt.plot(val_acc, linewidth=5)
+    plt.title("Accuracy")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.legend(["Train","Validation"], loc="lower right")
+    plt.ylim([0.75,1])
+    plt.savefig(filename)
+    plt.close()
+    
 
 
 
