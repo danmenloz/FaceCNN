@@ -1,39 +1,58 @@
 import src.utils as utils
+import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import Dataset, TensorDataset
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
+from torch.utils.data import Dataset, TensorDataset
 
-# Directories
+# datasets paths
 traindir = './data/train'
 validdir = './data/valid'
 testdir = './data/test'
 
-# Training and test dataset sizes per class
-train_size = 500
-val_size = 100
-test_size = 100
-
-# Options
-new_datasets = False
-resolution = (50,50)
-
-# Parameters
-batch_size = 32
-workers = 0 # subprocesses to use for data loading
-max_epochs = 20
-
-
-if __name__ == "__main__":
-    # run first 'python ./faceScrub download.py' to generate the actors folder
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Face classification using a CNN.')
     
+    parser.add_argument(
+        '--new_datasets', help='create new train, valid and test datasets?', default=False, type=bool)
+    parser.add_argument(
+        '--train', help='number of images per class in training dataset', default=100, type=int)
+    parser.add_argument(
+        '--valid', help='number of images per class in validation dataset', default=20, type=int)
+    parser.add_argument(
+        '--test', help='number of images per class in testing dataset', default=20, type=int)
+    parser.add_argument(
+        '--res', help='image resolution when creating new datasets', default=50, type=int)
+    parser.add_argument(
+        '--workers', help='number of subprocesses to use for data loading', default=0, type=int)
+    parser.add_argument(
+        '--suffix', help='suffix for the resulting files', default='', type=str)
+    parser.add_argument(
+        '--batch_size', help='images batch size for training and validation', default=32, type=int)
+    parser.add_argument(
+        '--epochs', help='number of max epochs to train the model', required=True, type=int)
+    parser.add_argument(
+        '--lr', help='learning rate for SGD optimizer', default=0.0025, type=float)
+    parser.add_argument(
+        '--momentum', help='momentum for SGD optimizer', default=0.9, type=float)
+
+    return parser.parse_args()
+
+
+
+def main():
+    ## run first 'python ./faceScrub download.py' to generate the actors folder... quite time consuming
+
+    args = parse_args()
+
     # Create datasets with equal number of pos and neg classes
     ### The next line creates new datasets with randomly selected images from the actors/ folder
-    if new_datasets:
-        train_set, valid_set, test_set = utils.create_datasets(train_size,val_size,test_size,resolution)
+    if args.new_datasets:
+        train_set, valid_set, test_set = utils.create_datasets(args.train,args.valid,args.test,(args.res,args.res))
 
     # Load data from folders
     train_dataset = datasets.ImageFolder(
@@ -58,11 +77,11 @@ if __name__ == "__main__":
 
     # Create data loaders
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=workers)
+        train_dataset, batch_size=args.batch_size, shuffle=True,
+        num_workers=args.workers)
     valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=batch_size, shuffle=False,
-        num_workers=workers)
+        valid_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers)
     
     # Use GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -73,7 +92,7 @@ if __name__ == "__main__":
     k2 = 13 # Kernel size cnn 2
     cnn1 = nn.Conv2d(3, 16, k1) # Stride = 1, Padding = 0
     cnn2 = nn.Conv2d(16, 32, k2) # Stride = 1, Padding = 0
-    out_size = int(((resolution[0]-k1+1)/2-k2+1)/2) # Size after convolutional layers
+    out_size = int(((args.res-k1+1)/2-k2+1)/2) # Size after convolutional layers
 
     # Dense Layers
     fc1 = nn.Linear(32 * out_size * out_size, 256)
@@ -141,7 +160,7 @@ if __name__ == "__main__":
     }
 
     # Training and validation for a fixed number of epochs
-    for epoch in range(max_epochs):
+    for epoch in range(args.epochs):
         loss_batch = 0.0
         correct = 0
         total = 0
@@ -210,15 +229,15 @@ if __name__ == "__main__":
             %(epoch+1,hist['train_loss_epoch'][epoch],hist['train_acc'][epoch], \
                 hist['val_loss_epoch'][epoch],hist['val_acc'][epoch],hist['lr_list'][epoch]))
     
-    print('Training complete!')
+    print('Training complete!\n')
 
-    utils.save_history(hist, './images/CNN_history.csv') 
-    read_hist = utils.read_history('./images/CNN_history.csv') 
+    utils.save_history(hist, './images/CNN_history_' + args.suffix + '.csv') 
+    read_hist = utils.read_history('./images/CNN_history_' + args.suffix + '.csv') 
 
     # Generate and save plots
-    utils.plot_loss(read_hist['train_loss'], read_hist['train_loss_epoch'], scatter=True)
-    utils.plot_loss(read_hist['train_loss_epoch'], read_hist['val_loss_epoch'])
-    utils.plot_accuracy(read_hist['train_acc'], read_hist['val_acc'])
+    utils.plot_loss(read_hist['train_loss'], read_hist['train_loss_epoch'],filename='./images/loss_train_' + args.suffix + '.png',scatter=True)
+    utils.plot_loss(read_hist['train_loss_epoch'], read_hist['val_loss_epoch'],filename='./images/loss_' + args.suffix + '.png')
+    utils.plot_accuracy(read_hist['train_acc'], read_hist['val_acc'],filename='./images/accuracy_' + args.suffix + '.png')
 
 
     ## Measure performance using the Test dataset
@@ -235,8 +254,8 @@ if __name__ == "__main__":
     print('Test samples: \t%d' %(test_dataset.__len__()))
     # Create data loader
     test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False,
-        num_workers=workers)
+        test_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers)
     # Test data evaluation
     true_labels = test_loader.dataset.targets
     predict_labels = []
@@ -258,7 +277,11 @@ if __name__ == "__main__":
     utils.build_report(predict_labels,true_labels)
 
     # Plot and save confusion matrix
-    utils.plot_confusion_matrix(predict_labels,true_labels)
+    utils.plot_confusion_matrix(predict_labels,true_labels,filename='./images/conf_mtx_' + args.suffix + '.png')
 
     # Plot and save some mispredicted images
-    utils.plot_mispredictions(predict_labels,true_labels,test_dataset)
+    utils.plot_mispredictions(predict_labels,true_labels,test_dataset,filename='./images/mispredicted_' + args.suffix + '.png')
+
+
+if __name__ == "__main__":
+    main()

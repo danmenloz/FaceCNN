@@ -188,7 +188,6 @@ def plot_loss(loss1, loss2, filename='./images/loss.png',scatter=False):
         plt.title("Loss Train")
         plt.ylabel("Loss")
         plt.xlabel("Iteration")
-        filename='./images/loss_train.png'
     else:
         plt.plot(loss1, linewidth=5)
         plt.plot(loss2, linewidth=5)
