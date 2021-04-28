@@ -150,14 +150,18 @@ def main():
         'train_loss': [],         # Stores train loss at each iteration
         'train_loss_epoch': [],   # Stores train Loss per Epoch
         'train_acc': [],          # Stores train accuracy per mini batch
-        'train_predict': [],      # Stores prediction labels
         # List for validation results
         'val_loss_epoch': [],     # Stores train Loss per Epoch
         'val_acc': [],            # Stores train accuracy per mini batch
-        'val_predict': [],        # Stores prediction labels
         # List learning rate
-        'lr_list': []
+        'lr_list': [],
+        # Test accuracy
+        'test_acc': None
     }
+
+    # List to store prediction labels
+    train_predict = []
+    val_predict = []
 
     # Training and validation for a fixed number of epochs
     for epoch in range(args.epochs):
@@ -187,7 +191,7 @@ def main():
             _, predicted = torch.max(output.data, 1)
             total += len(labels)
             correct += (predicted == labels).sum().item()
-            hist['train_predict'] += (predicted).tolist()
+            train_predict += (predicted).tolist()
         
         # Train loss and accuracy per epoch 
         hist['train_loss_epoch'].append(loss_batch/(i+1))
@@ -214,7 +218,7 @@ def main():
                 _, predicted = torch.max(output.data, 1)
                 total += len(labels)
                 correct += (predicted == labels).sum().item()
-                hist['val_predict'] += (predicted).tolist()
+                val_predict += (predicted).tolist()
         
         # Validation loss and accuracy per epoch
         hist['val_loss_epoch'].append(loss_batch/(j+1))
@@ -231,13 +235,10 @@ def main():
     
     print('Training complete!\n')
 
-    utils.save_history(hist, './images/CNN_history_' + args.suffix + '.csv') 
-    read_hist = utils.read_history('./images/CNN_history_' + args.suffix + '.csv') 
-
     # Generate and save plots
-    utils.plot_loss(read_hist['train_loss'], read_hist['train_loss_epoch'],filename='./images/loss_train_' + args.suffix + '.png',scatter=True)
-    utils.plot_loss(read_hist['train_loss_epoch'], read_hist['val_loss_epoch'],filename='./images/loss_' + args.suffix + '.png')
-    utils.plot_accuracy(read_hist['train_acc'], read_hist['val_acc'],filename='./images/accuracy_' + args.suffix + '.png')
+    utils.plot_loss(hist['train_loss'], hist['train_loss_epoch'],filename='./images/loss_train_' + args.suffix + '.png',scatter=True)
+    utils.plot_loss(hist['train_loss_epoch'], hist['val_loss_epoch'],filename='./images/loss_' + args.suffix + '.png')
+    utils.plot_accuracy(hist['train_acc'], hist['val_acc'],filename='./images/accuracy_' + args.suffix + '.png')
 
 
     ## Measure performance using the Test dataset
@@ -271,7 +272,11 @@ def main():
                 total += len(labels)
                 predict_labels += predicted.tolist()
                 correct += (predicted == labels).sum().item()
-    print('Accuracy in test set: %3.3f%%' % (100 * correct / total))
+    hist['test_acc'] = 100 * correct / total
+    print('Accuracy in test set: %3.3f%%' % (hist['test_acc']))
+
+    # Add test accuracy and save history file
+    utils.save_history(hist, './images/CNN_history_' + args.suffix + '.csv') 
 
     # Generate report
     utils.build_report(predict_labels,true_labels)
