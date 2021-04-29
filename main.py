@@ -1,4 +1,5 @@
 import src.utils as utils
+import src.architecture as model
 import argparse
 import torch
 import torch.nn as nn
@@ -7,6 +8,7 @@ import torch.optim as optim
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, TensorDataset
+from torchsummary import summary
 
 # datasets paths
 traindir = './data/train'
@@ -43,6 +45,8 @@ def parse_args():
         '--l2', help='L2 regularizer for SGD', default=0.0, type=float)
     parser.add_argument(
         '--lr_decay_rate', help='lr decay rate in percentage', default=0.0, type=float)
+    parser.add_argument(
+        '--verbose', help='level of output', default=1, type=int)
 
     return parser.parse_args()
 
@@ -56,7 +60,7 @@ def main():
     # Create datasets with equal number of pos and neg classes
     ### The next line creates new datasets with randomly selected images from the actors/ folder
     if args.new_datasets:
-        train_set, valid_set, test_set = utils.create_datasets(args.train,args.valid,args.test,(args.res,args.res))
+        train_set, valid_set, test_set = utils.create_datasets(args.train,args.valid,args.test,(args.res,args.res),args.verbose-1 if args.verbose>0 else 0)
 
     # Load data from folders
     train_dataset = datasets.ImageFolder(
@@ -76,8 +80,9 @@ def main():
     )
 
     # Samples count
-    print('Training samples: \t%d' %(train_dataset.__len__()))
-    print('Validation samples: \t%d' %(valid_dataset.__len__()))
+    if args.verbose>1:
+        print('Training samples: \t%d' %(train_dataset.__len__()))
+        print('Validation samples: \t%d' %(valid_dataset.__len__()))
 
     # Create data loaders
     train_loader = torch.utils.data.DataLoader(
@@ -89,60 +94,14 @@ def main():
     
     # Use GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print("Device to use is",device)
+    if args.verbose>1:
+        print("Device to use is",device)
     
-    # Convolutional Layers
-    k1 = 5 # Kernel size cnn 1
-    k2 = 13 # Kernel size cnn 2
-    cnn1 = nn.Conv2d(3, 16, k1) # Stride = 1, Padding = 0
-    cnn2 = nn.Conv2d(16, 32, k2) # Stride = 1, Padding = 0
-    out_size = int(((args.res-k1+1)/2-k2+1)/2) # Size after convolutional layers
-
-    # Dense Layers
-    fc1 = nn.Linear(32 * out_size * out_size, 256)
-    fc2 = nn.Linear(256, 32)
-    fc3 = nn.Linear(32, 2)
-
-    # Xavier initialization
-    nn.init.xavier_uniform_(cnn1.weight) # Xavier initialization CNN1
-    nn.init.xavier_uniform_(cnn2.weight) # Xavier initialization CNN2
-    nn.init.xavier_uniform_(fc1.weight) # Xavier initialization FC1
-    nn.init.xavier_uniform_(fc2.weight) # Xavier initialization FC2
-    nn.init.xavier_uniform_(fc3.weight) # Xavier initialization FC3
-
-    # Batch Normalization
-    batch1 = nn.BatchNorm2d(16)
-    batch2 = nn.BatchNorm2d(32)
-    
-    # Vanilla CNN archirecture
-    class CNN(nn.Module):
-        def __init__(self):
-            # Neural Network layers
-            super(CNN, self).__init__()
-            self.layer1 = nn.Sequential(
-                cnn1,
-                batch1,
-                nn.ReLU(),
-                nn.MaxPool2d(2, 2))
-            self.layer2 = nn.Sequential(
-                cnn2,
-                batch2,
-                nn.ReLU(),
-                nn.MaxPool2d(2, 2))
-            self.layer3 = nn.Sequential(fc1,nn.ReLU())
-            self.layer4 = nn.Sequential(fc2,nn.ReLU())
-            self.layer5 = nn.Sequential(fc3)
-        
-        def forward(self, x):
-            out = self.layer1(x)
-            out = self.layer2(out)
-            out = out.view(-1, 32 * out_size * out_size)
-            out = self.layer3(out)
-            out = self.layer4(out)
-            out = self.layer5(out)
-            return out
-
-    net = CNN().to(device) # Send CNN to GPU if available
+    # Vanilla CNN aquitecture
+    net = model.CNN(args.res).to(device) # Send CNN to GPU if available
+    if args.verbose>2:
+        print('Model summary:')
+        summary(net, input_size=(3, args.res, args.res))
 
     # Loss function and Optimizer
     criterion = nn.CrossEntropyLoss()
@@ -237,16 +196,19 @@ def main():
         hist['lr_list'].append(optimizer.param_groups[0]['lr'])
         
         # Print results
-        print("Epoch %2d -> train_loss: %.5f, train_acc: %.5f | val_loss: %.5f, val_acc: %.5f | lr: %.5f" 
-            %(epoch+1,hist['train_loss_epoch'][epoch],hist['train_acc'][epoch], \
-                hist['val_loss_epoch'][epoch],hist['val_acc'][epoch],hist['lr_list'][epoch]))
+        if args.verbose:
+            print("Epoch %2d -> train_loss: %.5f, train_acc: %.5f | val_loss: %.5f, val_acc: %.5f | lr: %.5f" 
+                %(epoch+1,hist['train_loss_epoch'][epoch],hist['train_acc'][epoch], \
+                    hist['val_loss_epoch'][epoch],hist['val_acc'][epoch],hist['lr_list'][epoch]))
     
-    print('Training complete!\n')
+    if args.verbose>1:
+        print('Training complete!\n')
 
     # Generate and save plots
-    utils.plot_loss(hist['train_loss'], hist['train_loss_epoch'],filename='./images/loss_train_' + args.suffix + '.png',scatter=True)
-    utils.plot_loss(hist['train_loss_epoch'], hist['val_loss_epoch'],filename='./images/loss_' + args.suffix + '.png')
-    utils.plot_accuracy(hist['train_acc'], hist['val_acc'],filename='./images/accuracy_' + args.suffix + '.png')
+    if args.verbose>2:
+        utils.plot_loss(hist['train_loss'], hist['train_loss_epoch'],filename='./images/loss_train_' + args.suffix + '.png',scatter=True)
+        utils.plot_loss(hist['train_loss_epoch'], hist['val_loss_epoch'],filename='./images/loss_' + args.suffix + '.png')
+        utils.plot_accuracy(hist['train_acc'], hist['val_acc'],filename='./images/accuracy_' + args.suffix + '.png')
 
 
     ## Measure performance using the Test dataset
@@ -260,7 +222,8 @@ def main():
         ])
     )
     # Samples count
-    print('Test samples: \t%d' %(test_dataset.__len__()))
+    if args.verbose>1:
+        print('Test samples: \t%d' %(test_dataset.__len__()))
     # Create data loader
     test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=args.batch_size, shuffle=False,
@@ -281,19 +244,21 @@ def main():
                 predict_labels += predicted.tolist()
                 correct += (predicted == labels).sum().item()
     hist['test_acc'] = 100 * correct / total
-    print('Accuracy in test set: %3.3f%%' % (hist['test_acc']))
+    if args.verbose>1:
+        print('Accuracy in test set: %3.3f%%' % (hist['test_acc']))
 
-    # Add test accuracy and save history file
-    utils.save_history(hist, './images/CNN_history_' + args.suffix + '.csv') 
+    if args.verbose>2:
+        # Add test accuracy and save history file
+        utils.save_history(hist, './images/CNN_history_' + args.suffix + '.csv') 
 
-    # Generate report
-    utils.build_report(predict_labels,true_labels)
+        # Generate report
+        utils.build_report(predict_labels,true_labels)
 
-    # Plot and save confusion matrix
-    utils.plot_confusion_matrix(predict_labels,true_labels,filename='./images/conf_mtx_' + args.suffix + '.png')
+        # Plot and save confusion matrix
+        utils.plot_confusion_matrix(predict_labels,true_labels,filename='./images/conf_mtx_' + args.suffix + '.png')
 
-    # Plot and save some mispredicted images
-    utils.plot_mispredictions(predict_labels,true_labels,test_dataset,filename='./images/mispredicted_' + args.suffix + '.png')
+        # Plot and save some mispredicted images
+        utils.plot_mispredictions(predict_labels,true_labels,test_dataset,filename='./images/mispredicted_' + args.suffix + '.png')
 
 
 if __name__ == "__main__":

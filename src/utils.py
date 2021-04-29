@@ -126,8 +126,8 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
         if len(test_set) == test_size:
             break
     actors = list(set(actors)) # delete duplicates
-    create_directory(test_set, 'data/test/', resolution, verbose=2)
-    create_info_file(test_set, 'data/test/', 'test.txt')
+    create_directory(test_set, 'data/test/', resolution, verbose=verbose)
+    create_info_file(test_set, 'data/test/', 'test.txt',verbose=verbose)
 
     if verbose:
         print('\nCreating validation set...')
@@ -139,8 +139,8 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
             validation_set.append(face)
         if len(validation_set) == val_size:
             break
-    create_directory(validation_set, 'data/valid/', resolution, verbose=2)
-    create_info_file(validation_set, 'data/valid/', 'valid.txt')
+    create_directory(validation_set, 'data/valid/', resolution, verbose=verbose)
+    create_info_file(validation_set, 'data/valid/', 'valid.txt',verbose=verbose)
 
     if verbose:
         print('\nCreating training set...')
@@ -152,8 +152,8 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
             training_set.append(face)
         if len(training_set) == train_size:
             break
-    create_directory(training_set, 'data/train/', resolution, verbose=2)
-    create_info_file(training_set, 'data/train/', 'train.txt')
+    create_directory(training_set, 'data/train/', resolution, verbose=verbose)
+    create_info_file(training_set, 'data/train/', 'train.txt',verbose=verbose)
 
     if verbose:
         print('\nDatasets created sucessfully!\n')
