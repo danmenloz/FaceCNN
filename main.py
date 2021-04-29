@@ -36,9 +36,13 @@ def parse_args():
     parser.add_argument(
         '--epochs', help='number of max epochs to train the model', required=True, type=int)
     parser.add_argument(
-        '--lr', help='learning rate for SGD optimizer', default=0.0025, type=float)
+        '--lr', help='learning rate for SGD optimizer', default=0.01, type=float)
     parser.add_argument(
-        '--momentum', help='momentum for SGD optimizer', default=0.9, type=float)
+        '--momentum', help='momentum for SGD optimizer', default=0.0, type=float)
+    parser.add_argument(
+        '--l2', help='L2 regularizer for SGD', default=0.0, type=float)
+    parser.add_argument(
+        '--lr_decay_rate', help='lr decay rate in percentage', default=0.0, type=float)
 
     return parser.parse_args()
 
@@ -142,7 +146,7 @@ def main():
 
     # Loss function and Optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.0025, momentum=0.9)
+    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.l2)
 
     # Save training and validation history in a dictionary
     hist = {
@@ -168,6 +172,10 @@ def main():
         loss_batch = 0.0
         correct = 0
         total = 0
+
+        if args.lr_decay_rate>0:
+            lr = optimizer.param_groups[0]['lr']
+            optimizer.param_groups[0]['lr'] = lr - args.lr_decay_rate * lr
         
         # Trainining step
         for i, (images,labels) in enumerate(train_loader, 0):
