@@ -9,6 +9,8 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, TensorDataset
 from torchsummary import summary
+import numpy as np
+import matplotlib.pyplot as plt
 
 # datasets paths
 traindir = './data/train'
@@ -71,6 +73,17 @@ def main():
             # TODO: add data agumentation schemes
         ])
     )
+
+    # Approximate mean and standard deviation to normalize train dataset to
+    train_images_mean, train_images_std, _ = utils.image_normalization(train_dataset)
+    # print(train_images_mean, train_images_std)
+    train_transform_norm = transforms.Compose([
+        #transforms.ToPILImage(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=train_images_mean, std=train_images_std)
+    ])
+
+    train_dataset_normalized = datasets.ImageFolder(traindir, transform = train_transform_norm)
     valid_dataset = datasets.ImageFolder(
         validdir,
         transforms.Compose([
@@ -79,6 +92,19 @@ def main():
         ])
     )
 
+# Approximate mean and standard deviation to normalize valid dataset to
+    valid_images_mean, valid_images_std, _ = utils.image_normalization(valid_dataset)
+    valid_transform_norm = transforms.Compose([
+        #transforms.ToPILImage(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=valid_images_mean, std=valid_images_std)
+    ])
+
+    valid_dataset_normalized = datasets.ImageFolder(validdir, transform = valid_transform_norm)
+
+    # Normalized Data Visualization
+    # utils.visualize_normalization(train_dataset, train_dataset_normalized, batch_size = train_size*2)
+
     # Samples count
     if args.verbose>1:
         print('Training samples: \t%d' %(train_dataset.__len__()))
@@ -86,10 +112,10 @@ def main():
 
     # Create data loaders
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
+        train_dataset_normalized, batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers)
     valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=args.batch_size, shuffle=False,
+        valid_dataset_normalized, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers)
     
     # Use GPU if available

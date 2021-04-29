@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 import seaborn as sns
 import pandas as pd
-
+import torch
+from torch.utils.data import DataLoader
 
 path_actors_faces = './actors/faces/'
 path_actors_images = './actors/images/'
@@ -161,6 +162,66 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
     return training_set, validation_set, test_set
 
 
+def image_normalization(dataset):
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=50, shuffle=False, num_workers=0)
+    imgs_mean = []
+    imgs_std0 = []
+    imgs_std1 = []
+    # c=0
+    # Use GPU if available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    for i, (images,labels) in enumerate(dataloader, 0):
+        # Copy to GPU if available
+        images, labels = images.to(device), labels.to(device)
+
+        # shape (batch_size, 3, height, width)
+        images = images.numpy()
+        # print(images.shape)
+        # c+=1
+        # print(np.max(images[1]))
+
+        batch_mean = np.mean(images, axis=(0, 2, 3))
+        batch_std0 = np.std(images, axis=(0, 2, 3))
+        batch_std1 = np.std(images, axis=(0, 2, 3), ddof=1)
+
+        imgs_mean.append(batch_mean)
+        imgs_std0.append(batch_std0)
+        imgs_std1.append(batch_std1)
+
+    # shape (num_iterations, 3) -> (mean across 0th axis) -> shape (3,)
+    imgs_mean = np.array(imgs_mean).mean(axis=0)
+    imgs_std0 = np.array(imgs_std0).mean(axis=0)
+    imgs_std1 = np.array(imgs_std1).mean(axis=0)
+
+    # print("Done", c)
+
+    return imgs_mean, imgs_std0, imgs_std1
+
+# def visualize_normalization(original_data, normalized_data, batch_size = 50, filename='./images/normalized.png'):
+#     original_DL = torch.utils.data.DataLoader(original_data, batch_size, shuffle=False, num_workers=2)
+#     normalized_DL = torch.utils.data.DataLoader(normalized_data, batch_size, shuffle=False, num_workers=2)
+#     c=0
+
+#     original_imgs, original_label = next(iter(original_DL))
+#     normalized_imgs, normalized_label = next(iter(normalized_DL))
+
+#     i = original_label.index(1)
+#     print(i)
+
+#     oimage = original_imgs[-1].numpy()
+#     nimage = normalized_imgs[-1].numpy()
+#     print(oimage.shape)
+#     oimage = oimage.transpose(1, 2, 0)
+#     nimage = nimage.transpose(1, 2, 0)
+
+#     plt.imshow(oimage)
+#     plt.title('Test')
+#     plt.xticks([])
+#     plt.yticks([])
+#     plt.show()
+
+#     #plt.savefig(filename)
+#     #plt.close()
 
 def save_history(input_dict, filename = 'history.csv'):
     # Every key to data frame column
