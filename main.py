@@ -73,6 +73,9 @@ def main():
             transforms.Normalize(mean=images_mean, std=images_std)
             # TODO: add data agumentation schemes
         ])
+        if args.verbose>2:
+            # Normalized Data Visualization
+            utils.visualize_normalization(traindir,images_mean,images_std,batch_size = args.batch_size, filename='./images/normalized_' + args.suffix + '.png')
     else:
         trans = transforms.Compose([
             transforms.ToTensor(), # rescale to [0.0, 1.0]
@@ -89,8 +92,6 @@ def main():
         trans
     )
 
-    # Normalized Data Visualization
-    # utils.visualize_normalization(train_dataset, train_dataset_normalized, batch_size = train_size*2)
 
     # Samples count
     if args.verbose>1:

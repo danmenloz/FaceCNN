@@ -164,6 +164,7 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
     return training_set, validation_set, test_set
 
 
+
 def image_normalization(traindir, validdir, verbose=1):
     # Load data from folders
     train_dataset = datasets.ImageFolder(
@@ -217,31 +218,58 @@ def image_normalization(traindir, validdir, verbose=1):
 
     return imgs_mean, imgs_std0, imgs_std1
 
-# def visualize_normalization(original_data, normalized_data, batch_size = 50, filename='./images/normalized.png'):
-#     original_DL = torch.utils.data.DataLoader(original_data, batch_size, shuffle=False, num_workers=2)
-#     normalized_DL = torch.utils.data.DataLoader(normalized_data, batch_size, shuffle=False, num_workers=2)
-#     c=0
 
-#     original_imgs, original_label = next(iter(original_DL))
-#     normalized_imgs, normalized_label = next(iter(normalized_DL))
 
-#     i = original_label.index(1)
-#     print(i)
+def visualize_normalization(dir, mean, std, batch_size = 50, filename='./images/normalized.png', show = False):
+    # Create datasets
+    original_data = datasets.ImageFolder(
+        dir,
+        transforms.ToTensor(), # rescale to [0.0, 1.0]
+    )
+    normalized_data = datasets.ImageFolder(
+        dir,
+        transforms.Compose([
+            transforms.ToTensor(), # rescale to [0.0, 1.0]
+            transforms.Normalize(mean=mean, std=std)
+        ])
+    )
 
-#     oimage = original_imgs[-1].numpy()
-#     nimage = normalized_imgs[-1].numpy()
-#     print(oimage.shape)
-#     oimage = oimage.transpose(1, 2, 0)
-#     nimage = nimage.transpose(1, 2, 0)
+    # Create data loaders
+    original_DL = torch.utils.data.DataLoader(original_data, batch_size, shuffle=False, num_workers=0)
+    normalized_DL = torch.utils.data.DataLoader(normalized_data, batch_size, shuffle=False, num_workers=0)
 
-#     plt.imshow(oimage)
-#     plt.title('Test')
-#     plt.xticks([])
-#     plt.yticks([])
-#     plt.show()
+    for i, (original,normalized) in enumerate(zip(original_DL, normalized_DL)):
+        original_imgs, original_labels = original #unpack imgs and lbls
+        normalized_imgs, _ = normalized #unpack imgs and lbls
+        if original_labels[0] == 1: # This is a batch of faces
+            break
 
-#     #plt.savefig(filename)
-#     #plt.close()
+    original_imgs = original_imgs.numpy()
+    normalized_imgs = normalized_imgs.numpy()
+
+    fig, axesarr = plt.subplots(2,4)
+    for row, ax in enumerate(axesarr[:, 0], start=1): #
+        if (row == 1):
+            ax.set_title("Original Images")
+        else:
+            ax.set_title("Normalized Images")
+
+    axesarr[0, 0].imshow(original_imgs[0].transpose(1, 2, 0))
+    axesarr[0, 1].imshow(original_imgs[2].transpose(1, 2, 0))
+    axesarr[0, 2].imshow(original_imgs[-2].transpose(1, 2, 0))
+    axesarr[0, 3].imshow(original_imgs[-1].transpose(1, 2, 0))
+    axesarr[1, 0].imshow(normalized_imgs[0].transpose(1, 2, 0))
+    axesarr[1, 1].imshow(normalized_imgs[2].transpose(1, 2, 0))
+    axesarr[1, 2].imshow(normalized_imgs[-2].transpose(1, 2, 0))
+    axesarr[1, 3].imshow(normalized_imgs[-1].transpose(1, 2, 0))
+
+    if show:
+        plt.show()
+
+    plt.savefig(filename)
+    plt.close()
+
+
 
 def save_history(input_dict, filename = 'history.csv'):
     # Every key to data frame column
