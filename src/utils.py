@@ -12,7 +12,9 @@ from sklearn import metrics
 import seaborn as sns
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
+import torchvision.datasets as datasets
+import torchvision.transforms as transforms
 
 path_actors_faces = './actors/faces/'
 path_actors_images = './actors/images/'
@@ -162,12 +164,32 @@ def create_datasets(train_size, val_size, test_size, resolution, verbose=1):
     return training_set, validation_set, test_set
 
 
-def image_normalization(dataset):
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=50, shuffle=False, num_workers=0)
+def image_normalization(traindir, validdir, verbose=1):
+    # Load data from folders
+    train_dataset = datasets.ImageFolder(
+        traindir,
+        transforms.ToTensor() # rescale to [0.0, 1.0]
+    )
+    valid_dataset = datasets.ImageFolder(
+        validdir, 
+        transforms.ToTensor() # rescale to [0.0, 1.0]
+    )
+
+    # Combine train and valid datasets
+    dataset = ConcatDataset([train_dataset, valid_dataset])
+    if verbose>1:
+        print('Samples for normalization: \t%d' %(dataset.__len__()))
+
+    # Create data loaders
+    # The larger the batch_size the better the mean and std approximation
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=50, shuffle=True,
+        num_workers=0)
+
     imgs_mean = []
     imgs_std0 = []
     imgs_std1 = []
-    # c=0
+
     # Use GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     for i, (images,labels) in enumerate(dataloader, 0):
@@ -176,13 +198,10 @@ def image_normalization(dataset):
 
         # shape (batch_size, 3, height, width)
         images = images.numpy()
-        # print(images.shape)
-        # c+=1
-        # print(np.max(images[1]))
 
         batch_mean = np.mean(images, axis=(0, 2, 3))
         batch_std0 = np.std(images, axis=(0, 2, 3))
-        batch_std1 = np.std(images, axis=(0, 2, 3), ddof=1)
+        batch_std1 = np.std(images, axis=(0, 2, 3), ddof=1) # not sure what this std is for :(
 
         imgs_mean.append(batch_mean)
         imgs_std0.append(batch_std0)
@@ -193,7 +212,8 @@ def image_normalization(dataset):
     imgs_std0 = np.array(imgs_std0).mean(axis=0)
     imgs_std1 = np.array(imgs_std1).mean(axis=0)
 
-    # print("Done", c)
+    if verbose>1:
+        print("Dataset Normalization: mean={}, std1={}, std2{}".format(imgs_mean,imgs_std0,imgs_std1))
 
     return imgs_mean, imgs_std0, imgs_std1
 
@@ -319,3 +339,6 @@ def plot_mispredictions(score,labels,dataset,num_imgs=np.inf,filename='./images/
     
     plt.savefig(filename)
     plt.close()
+
+if __name__ == "__main__":
+    pass

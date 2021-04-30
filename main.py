@@ -10,7 +10,6 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset, TensorDataset
 from torchsummary import summary
 import numpy as np
-import matplotlib.pyplot as plt
 
 # datasets paths
 traindir = './data/train'
@@ -38,6 +37,8 @@ def parse_args():
     parser.add_argument(
         '--batch_size', help='images batch size for training and validation', default=32, type=int)
     parser.add_argument(
+        '--norm', help='Apply data normalization?', default=False, type=bool)
+    parser.add_argument(
         '--epochs', help='number of max epochs to train the model', required=True, type=int)
     parser.add_argument(
         '--lr', help='learning rate for SGD optimizer', default=0.01, type=float)
@@ -64,43 +65,29 @@ def main():
     if args.new_datasets:
         train_set, valid_set, test_set = utils.create_datasets(args.train,args.valid,args.test,(args.res,args.res),args.verbose-1 if args.verbose>0 else 0)
 
+    if args.norm:
+        # Approximate mean and standard deviation using the train and validation datasets
+        images_mean, images_std, _ = utils.image_normalization(traindir, validdir, args.verbose)
+        trans = transforms.Compose([
+            transforms.ToTensor(), # rescale to [0.0, 1.0]
+            transforms.Normalize(mean=images_mean, std=images_std)
+            # TODO: add data agumentation schemes
+        ])
+    else:
+        trans = transforms.Compose([
+            transforms.ToTensor(), # rescale to [0.0, 1.0]
+            # TODO: add data agumentation schemes
+        ])
+
     # Load data from folders
     train_dataset = datasets.ImageFolder(
         traindir,
-        transforms.Compose([
-            transforms.ToTensor() # rescale to [0.0, 1.0]
-            # TODO: add normalization
-            # TODO: add data agumentation schemes
-        ])
+        trans
     )
-
-    # Approximate mean and standard deviation to normalize train dataset to
-    train_images_mean, train_images_std, _ = utils.image_normalization(train_dataset)
-    # print(train_images_mean, train_images_std)
-    train_transform_norm = transforms.Compose([
-        #transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=train_images_mean, std=train_images_std)
-    ])
-
-    train_dataset_normalized = datasets.ImageFolder(traindir, transform = train_transform_norm)
     valid_dataset = datasets.ImageFolder(
         validdir,
-        transforms.Compose([
-            transforms.ToTensor() # rescale to [0.0, 1.0]
-            # TODO: add normalization
-        ])
+        trans
     )
-
-# Approximate mean and standard deviation to normalize valid dataset to
-    valid_images_mean, valid_images_std, _ = utils.image_normalization(valid_dataset)
-    valid_transform_norm = transforms.Compose([
-        #transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=valid_images_mean, std=valid_images_std)
-    ])
-
-    valid_dataset_normalized = datasets.ImageFolder(validdir, transform = valid_transform_norm)
 
     # Normalized Data Visualization
     # utils.visualize_normalization(train_dataset, train_dataset_normalized, batch_size = train_size*2)
@@ -112,10 +99,10 @@ def main():
 
     # Create data loaders
     train_loader = torch.utils.data.DataLoader(
-        train_dataset_normalized, batch_size=args.batch_size, shuffle=True,
+        train_dataset, batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers)
     valid_loader = torch.utils.data.DataLoader(
-        valid_dataset_normalized, batch_size=args.batch_size, shuffle=False,
+        valid_dataset, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers)
     
     # Use GPU if available
