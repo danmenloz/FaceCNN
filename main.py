@@ -225,14 +225,21 @@ def main():
 
 
     ## Measure performance using the Test dataset
+
+    if args.norm:
+        test_trans = transforms.Compose([
+            transforms.ToTensor(), # rescale to [0.0, 1.0]
+            transforms.Normalize(mean=images_mean, std=images_std)
+        ])
+    else:
+        test_trans = transforms.Compose([
+            transforms.ToTensor(), # rescale to [0.0, 1.0]
+        ])
+
     # Load data from folder
     test_dataset = datasets.ImageFolder(
         testdir,
-        transforms.Compose([
-            transforms.ToTensor() # rescale to [0.0, 1.0]
-            # TODO: add normalization
-            # TODO: add data agumentation schemes
-        ])
+        test_trans
     )
     # Samples count
     if args.verbose>1:
