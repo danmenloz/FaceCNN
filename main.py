@@ -69,17 +69,21 @@ def main():
         # Approximate mean and standard deviation using the train and validation datasets
         images_mean, images_std, _ = utils.image_normalization(traindir, validdir, args.verbose)
         trans = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=(-90, 90)),
+            transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(), # rescale to [0.0, 1.0]
             transforms.Normalize(mean=images_mean, std=images_std)
-            # TODO: add data agumentation schemes
         ])
         if args.verbose>2:
             # Normalized Data Visualization
             utils.visualize_normalization(traindir,images_mean,images_std,batch_size = args.batch_size, filename='./images/normalized_' + args.suffix + '.png')
     else:
         trans = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=(-90, 90)),
+            transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(), # rescale to [0.0, 1.0]
-            # TODO: add data agumentation schemes
         ])
 
     # Load data from folders
